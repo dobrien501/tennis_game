@@ -10,3 +10,4 @@ $ ./run.sh
 
 ## TODO
 - implement deuce/adj player behaviour
+- print out score results
