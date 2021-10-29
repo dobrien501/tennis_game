@@ -1,5 +1,5 @@
 require "rspec/autorun"
-
+require "byebug"
 module Tennis
   class Score
     SCORES = ["Love", "Fifteen", "Thirty", "Fourty", "Point"]
@@ -11,7 +11,7 @@ module Tennis
     end
 
     def current
-      SCORES[score_index]
+      self.class::SCORES[score_index]
     end
 
     def increment
@@ -23,13 +23,30 @@ module Tennis
     end
 
     def won?
-      @score_index == SCORES.size-1
+      @score_index == self.class::SCORES.size-1
+    end
+
+    def self.tie
+      SCORES[3]
+    end
+  end
+
+  class TieScore < Score
+    SCORES = ["Deuce", "Advantage Player", "Point"]
+
+    def self.advantage
+      SCORES[1]
+    end
+
+    def self.deuce
+      SCORES[0]
     end
   end
 
   class Player
 
-    attr_reader :name, :score, :won
+    attr_reader :name, :won
+    attr_accessor :score
 
     def initialize(name)
       @name  = name
@@ -39,9 +56,32 @@ module Tennis
     def won?
       @score.won?
     end
-
   end
 
+  class Round
+
+    attr_reader :player1, :player2
+
+    def initialize(player1, player2)
+      @player1 = player1
+      @player2 = player2
+      @game    = Game.new(player1, player2)
+      @tied    = false
+    end
+
+    def win_point(player)
+      @game.win_point(player)
+
+      if tied_reached?
+        puts "Players reach #{TieScore.deuce}"
+        @game = TieGame.new(@player1, @player2)
+      end
+    end
+
+    def tied_reached?
+      @tied = (@player1.score.current == Score.tie) && (@player2.score.current == Score.tie) && !@tied
+    end
+  end
   class Game
     attr_reader :player1, :player2
 
@@ -51,7 +91,6 @@ module Tennis
     end
 
     def win_point(player)
-      
       unless player.won?      
         player.score.increment
         print_score(player)
@@ -63,7 +102,13 @@ module Tennis
     end
 
     def print_score(player)
-      puts "#{player.name} scores #{player.score.current}"
+      puts "\n#{player.name} scores!"
+      puts ""
+      puts "Scoreboard"
+      puts "==========="
+      puts "#{@player1.name} - #{@player1.score.current} : #{@player2.name} - #{@player2.score.current}"
+      puts "==========="
+      puts ""
     end
 
     def print_winner(player)
@@ -74,6 +119,30 @@ module Tennis
 
     def players
       [@player1, @player2]
+    end
+  end
+
+  class TieGame < Game
+
+    def initialize(player1, player2)
+      super
+      @player1.score = TieScore.new
+      @player2.score = TieScore.new
+    end
+
+    def win_point(player)
+      other_player = (players - [player]).first
+      if other_player.score.current == TieScore.advantage
+        other_player.score.decrement
+      else
+        player.score.increment
+      end
+
+      print_score(player)
+
+      if player.won?
+        print_winner(player)        
+      end
     end
   end
 end
@@ -137,16 +206,35 @@ RSpec.describe "Tennis Game" do
       expect(game.player2.name).to eql "Jim"
     end
   end
+
+  describe Tennis::TieGame do
+    it "decrements other player score if scoring player breaks advantage" do
+      player1 = Tennis::Player.new("Bob")
+      player2 = Tennis::Player.new("Jim")
+      game = described_class.new(player1, player2)
+
+      game.win_point(player1)
+      expect(player1.score.current).to eql Tennis::TieScore.advantage
+      game.win_point(player2)
+      expect(player1.score.current).to eql Tennis::TieScore.deuce
+      expect(player2.score.current).to eql Tennis::TieScore.deuce
+    end
+  end
 end
 
 @player1 = Tennis::Player.new("Bob")
 @player2 = Tennis::Player.new("Jim")
-@game    = Tennis::Game.new(@player1, @player2)
+@round    = Tennis::Round.new(@player1, @player2)
 
 # Lets play a game!
 
-@game.win_point(@player1)
-@game.win_point(@player2)
-@game.win_point(@player2)
-@game.win_point(@player2)
-@game.win_point(@player2)
+@round.win_point(@player1)
+@round.win_point(@player2)
+@round.win_point(@player2)
+@round.win_point(@player2)
+@round.win_point(@player1)
+@round.win_point(@player1)
+@round.win_point(@player2)
+@round.win_point(@player1)
+@round.win_point(@player1)
+@round.win_point(@player1)
