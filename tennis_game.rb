@@ -1,5 +1,33 @@
 require "rspec/autorun"
 require "byebug"
+
+module Callbacks
+  
+  # adds class method "before"
+  # prepands a module to overwrite instance methods
+  # inject callback functions BEFORE method_name runs 
+  def before(method_name, *callbacks)
+    prepend(Module.new do 
+      define_method(method_name) do |*args|
+        callbacks.each { |callback| send(callback, *args) }
+        super(*args)
+      end
+    end)
+  end
+
+  # adds class method "after"
+  # prepands a module to overwrite instance methods
+  # inject callback functions AFTER method_name runs 
+  def after(method_name, *callbacks)
+    prepend(Module.new do 
+      define_method(method_name) do |*args|
+        super(*args)
+        callbacks.each { |callback| send(callback, *args) }
+      end
+    end)
+  end
+end
+
 module Tennis
   class Score
     SCORES = ["Love", "Fifteen", "Thirty", "Fourty", "Point"]
@@ -57,10 +85,12 @@ module Tennis
       @score.won?
     end
   end
-
+  
   class Round
+    extend ::Callbacks
 
     attr_reader :player1, :player2
+    after :win_point, :tie_game_check, :print_score, :print_scoreboard
 
     def initialize(player1, player2)
       @player1 = player1
@@ -71,15 +101,32 @@ module Tennis
 
     def win_point(player)
       @game.win_point(player)
+    end
 
+    def tied_reached?
+      @tied = (@player1.score.current == Score.tie) && (@player2.score.current == Score.tie) && !@tied
+    end
+
+    private
+    
+    def tie_game_check(_)
       if tied_reached?
         puts "Players reach #{TieScore.deuce}"
         @game = TieGame.new(@player1, @player2)
       end
     end
 
-    def tied_reached?
-      @tied = (@player1.score.current == Score.tie) && (@player2.score.current == Score.tie) && !@tied
+    def print_scoreboard(_)
+        puts ""
+        puts "Scoreboard"
+        puts "==========="
+        puts "#{@player1.name} - #{@player1.score.current} : #{@player2.name} - #{@player2.score.current}"
+        puts "==========="
+        puts ""
+    end
+
+    def print_score(player)
+      puts "\n#{player.name} scores!"
     end
   end
   class Game
@@ -93,22 +140,11 @@ module Tennis
     def win_point(player)
       unless player.won?      
         player.score.increment
-        print_score(player)
       end
 
       if player.won?
         print_winner(player)
       end
-    end
-
-    def print_score(player)
-      puts "\n#{player.name} scores!"
-      puts ""
-      puts "Scoreboard"
-      puts "==========="
-      puts "#{@player1.name} - #{@player1.score.current} : #{@player2.name} - #{@player2.score.current}"
-      puts "==========="
-      puts ""
     end
 
     def print_winner(player)
@@ -137,8 +173,6 @@ module Tennis
       else
         player.score.increment
       end
-
-      print_score(player)
 
       if player.won?
         print_winner(player)        
