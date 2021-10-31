@@ -103,11 +103,11 @@ module Tennis
       @game.win_point(player)
     end
 
+    private
+    
     def tied_reached?
       @tied = (@player1.score.current == Score.tie) && (@player2.score.current == Score.tie) && !@tied
     end
-
-    private
     
     def tie_game_check(_)
       if tied_reached?
