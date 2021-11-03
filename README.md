@@ -3,15 +3,10 @@ My ongoing attempt at refactoring kata exercise https://blog.arkency.com/10-less
 
 ## Gem dependencies
 
-gem install rspec
+rspec ~> 3.10.0
 
-## To Run (in bash)
+## To Run
 $ ./run.sh
-
-## TODO
-- implement deuce/adj player behaviour
-- print out score results
-
 
 ## Original code from brief
 
